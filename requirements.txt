@@ -1,0 +1,3 @@
+# Dependencies for the GUI version
+# tkinter is usually included with Python standard library
+# Python 3.6+ required for f-strings and subprocess.run
