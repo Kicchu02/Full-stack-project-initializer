@@ -26,12 +26,16 @@ class ProjectInitializerGUI:
         self.project_name = tk.StringVar(value="")
         self.project_path = tk.StringVar(value="")
         self.repo_url = "https://github.com/Kicchu02/Fullstack-boilerplate.git"
+        self.git_installed = False  # Initialize git_installed attribute
         
         # Create widgets
         self.create_widgets()
         
         # Start system checks
         self.check_git_async()
+        
+        # Initial validation to set button state
+        self.validate_inputs()
         
         # Auto-fit window to content
         self.root.update_idletasks()
@@ -62,9 +66,6 @@ class ProjectInitializerGUI:
         self.name_entry = ttk.Entry(name_frame, textvariable=self.project_name, width=50, font=("Arial", 10))
         self.name_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
         
-        # Add placeholder text
-        self.name_entry.insert(0, "Enter project name (e.g., my-app)")
-        
         # Project Path Section
         path_label = ttk.Label(main_frame, text="Project Path (Required):", font=("Arial", 11, "bold"))
         path_label.pack(anchor="w", pady=(0, 5))
@@ -77,9 +78,6 @@ class ProjectInitializerGUI:
         
         browse_btn = ttk.Button(dir_frame, text="Browse", command=self.browse_directory)
         browse_btn.pack(side="right")
-        
-        # Add placeholder text
-        self.dir_entry.insert(0, "Enter path (e.g., C:\\Projects or .)")
         
         # OS Detection Display
         os_frame = ttk.LabelFrame(main_frame, text="System Information", padding="15")
@@ -119,7 +117,7 @@ class ProjectInitializerGUI:
         self.init_btn.pack(side="left", padx=(0, 20))
         
         # Quit button
-        quit_btn = ttk.Button(button_frame, text="QUIT", command=self.root.quit, style="Accent.TButton")
+        quit_btn = ttk.Button(button_frame, text="Quit", command=self.root.quit, style="Accent.TButton")
         quit_btn.pack(side="left")
         
         # Bind Enter key to Initialize button
@@ -127,6 +125,12 @@ class ProjectInitializerGUI:
         
         # Bind Escape key to Quit
         self.root.bind('<Escape>', lambda event: self.root.quit())
+        
+        # Bind input validation to entry fields
+        self.name_entry.bind('<KeyRelease>', self.validate_inputs)
+        self.dir_entry.bind('<KeyRelease>', self.validate_inputs)
+        self.project_name.trace('w', self.validate_inputs)
+        self.project_path.trace('w', self.validate_inputs)
     
     def browse_directory(self):
         """Open directory browser dialog."""
@@ -136,6 +140,22 @@ class ProjectInitializerGUI:
         )
         if directory:
             self.project_path.set(directory)
+            self.validate_inputs()  # Re-validate after setting path
+    
+    def validate_inputs(self, *args):
+        """Validate input fields and enable/disable Initialize button accordingly."""
+        project_name = self.project_name.get().strip()
+        project_path = self.project_path.get().strip()
+        
+        # Check if both fields have content (not empty)
+        name_valid = project_name and len(project_name) > 0
+        path_valid = project_path and len(project_path) > 0
+        
+        # Only enable button if both fields are valid AND git is installed
+        if name_valid and path_valid and hasattr(self, 'git_installed') and self.git_installed:
+            self.init_btn.config(state="normal")
+        else:
+            self.init_btn.config(state="disabled")
     
     def update_status(self, message):
         """Update status label and log to console."""
@@ -150,11 +170,11 @@ class ProjectInitializerGUI:
         project_path = self.project_path.get().strip()
         
         # Validate inputs
-        if not project_name or project_name == "Enter project name (e.g., my-app)":
+        if not project_name:
             messagebox.showerror("Error", "Please enter a valid project name.")
             return
             
-        if not project_path or project_path == "Enter path (e.g., C:\\Projects or .)":
+        if not project_path:
             messagebox.showerror("Error", "Please enter a valid project path.")
             return
         
@@ -397,7 +417,8 @@ class ProjectInitializerGUI:
                 self.root.after(0, lambda: self.git_label.config(text="✓ Git is installed", foreground="green"))
                 self.root.after(0, lambda: self.system_status_label.config(text="✓ Ready", foreground="green"))
                 self.root.after(0, lambda: self.status_label.config(text="System checks completed. Ready to initialize project."))
-                self.root.after(0, lambda: self.init_btn.config(state="normal"))
+                self.root.after(0, lambda: setattr(self, 'git_installed', True))
+                self.root.after(0, lambda: self.validate_inputs())  # Re-validate after git check
                 # Force update to ensure button is visible
                 self.root.after(0, lambda: self.root.update_idletasks())
                 print("Git check completed - Initialize button should now be enabled")
@@ -405,6 +426,8 @@ class ProjectInitializerGUI:
                 self.root.after(0, lambda: self.git_label.config(text="✗ Git not found", foreground="red"))
                 self.root.after(0, lambda: self.system_status_label.config(text="✗ Not Ready", foreground="red"))
                 self.root.after(0, lambda: self.status_label.config(text="Please install Git to continue"))
+                self.root.after(0, lambda: setattr(self, 'git_installed', False))
+                self.root.after(0, lambda: self.validate_inputs())  # Re-validate after git check
         
         thread = threading.Thread(target=check, daemon=True)
         thread.start()
